@@ -2,9 +2,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <unistd.h> //fork, execvp
+#include <sys/wait.h> //waitpid
+
 #define DELIMS " \t"
 
 char **parser(char *line, size_t *n);
+
+void execute(char **args);
 
 int main(void)
 {
@@ -23,7 +28,7 @@ int main(void)
         ssize_t len = getline(&line, &cap, stdin); //&line pq getline recebe ** e &cap pq recebe * 
         //e o getline aloca e realoca o buffer sozinho, então só precisa dar free uma vez no final
 
-        if(len == -1)//ctrl d (EOF) ou erro
+        if(len == -1)//ctrl d, (EOF) ou erro
         {
             printf("\n");
             break;
@@ -41,17 +46,7 @@ int main(void)
         
         char **tokenized = parser(line,&n);
 
-
-        for (size_t i = 0; i < n+1; i++)
-        {
-            if(tokenized[i] != NULL)
-                printf("%s ",tokenized[i]);
-            else
-                printf("NULL");
-        }
-        printf("\n");
-        
-        
+        execute(tokenized);
         free(tokenized);
     }
 
@@ -89,4 +84,28 @@ char **parser(char *line, size_t *n) //transformar "ski bidi" em ["ski","bidi",N
     toks[*n] = NULL;
 
     return toks;
+}
+
+void execute(char **args)
+{
+    int status;
+    pid_t pid = fork(); //duplica o processo
+
+    if(pid == -1)
+    {
+        perror("erro do fork");
+        return;
+    }
+
+    if(pid==0) //fork retorna 0 quando chama o child process
+    {
+        execvp(args[0], args); //onde de fato sao chamados os comandos
+
+        perror("minishell");//so chega aqui se ^ der errado 
+        exit(127);//convençao de comando nao encontrado
+    }
+
+    //guarda no status como o child terminou, da pra ver funcionando dando "sleep (numero)"
+    waitpid(pid,&status,0);
+
 }
